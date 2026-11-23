@@ -1,0 +1,1193 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>КіберВарта: Захист Акаунту</title>
+    <!-- Підключення Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Підключення шрифтів з підтримкою кирилиці -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Rubik:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        /* Базові стилі та кастомні анімації */
+        body {
+            font-family: 'Rubik', sans-serif;
+            background: radial-gradient(circle at top right, #1e1b4b, #0f172a 60%, #020617);
+            color: #f8fafc;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .font-mono-cyber {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Скляний ефект карток */
+        .cyber-glass {
+            background: rgba(30, 41, 59, 0.78);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(148, 163, 184, 0.18);
+            box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.6);
+        }
+
+        /* Анімація появи повідомлень */
+        @keyframes popIn {
+            0% { opacity: 0; transform: translateY(14px) scale(0.97); }
+            100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .animate-pop-in {
+            animation: popIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        /* Анімація тремтіння при втраті захисту */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20% { transform: translateX(-8px); }
+            40% { transform: translateX(8px); }
+            60% { transform: translateX(-5px); }
+            80% { transform: translateX(5px); }
+        }
+        .animate-shake {
+            animation: shake 0.45s ease-in-out;
+        }
+
+        /* Стиль інтерактивних "червоних прапорців" (підказок у тексті) */
+        .clue-word {
+            border-bottom: 2px dashed rgba(56, 189, 248, 0.45);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-radius: 4px;
+            padding: 0 3px;
+        }
+        .scanner-active .clue-word {
+            background: rgba(245, 158, 11, 0.18);
+            border-bottom: 2px solid #f59e0b;
+            box-shadow: 0 0 10px rgba(245, 158, 11, 0.25);
+        }
+        .clue-word.found {
+            background: rgba(244, 63, 94, 0.28) !important;
+            border-bottom: 2px solid #f43f5e !important;
+            color: #fecdd3;
+            font-weight: 600;
+            box-shadow: 0 0 12px rgba(244, 63, 94, 0.35);
+        }
+
+        /* Кнопки з 3D-відгуком */
+        .game-btn {
+            transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.2s ease;
+        }
+        .game-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+        }
+        .game-btn:active:not(:disabled) {
+            transform: translateY(1px);
+        }
+
+        /* Плавний перехід прогрес-бару */
+        .progress-smooth {
+            transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.4s ease;
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-between p-3 sm:p-6 select-none">
+
+    <!-- Верхня панель навігації та статусу (HUD) -->
+    <header class="w-full max-w-2xl cyber-glass rounded-2xl p-3 sm:p-4 mb-4 flex flex-col gap-3">
+        <div class="flex items-center justify-between gap-2">
+            <!-- Логотип гри -->
+            <div class="flex items-center gap-2.5">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/25">
+                    <!-- SVG Щит -->
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4"/>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="font-extrabold text-base sm:text-lg tracking-tight text-white leading-tight">КіберВарта</h1>
+                    <p class="text-xs text-cyan-300 font-medium">Захисти свій ігровий профіль</p>
+                </div>
+            </div>
+
+            <!-- Кнопки: Пам'ятка та Звук -->
+            <div class="flex items-center gap-2">
+                <button id="btnRules" class="game-btn px-3 py-2 rounded-xl bg-slate-800/90 hover:bg-slate-700 border border-slate-600/60 text-xs sm:text-sm font-semibold text-cyan-300 flex items-center gap-1.5" title="Пам'ятка безпеки">
+                    <span>📘</span>
+                    <span>Правила</span>
+                </button>
+                <button id="btnSound" class="game-btn p-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 border border-slate-600/60 text-slate-200" title="Увімкнути або вимкнути звук" aria-label="Звук">
+                    <span id="soundIcon">🔊</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Показники гравця (видимі під час гри) -->
+        <div id="hudStats" class="hidden grid-cols-1 sm:grid-cols-12 gap-3 pt-2 border-t border-slate-700/60 items-center">
+            <!-- Шкала безпеки акаунту -->
+            <div class="sm:col-span-7 flex flex-col gap-1">
+                <div class="flex justify-between text-xs font-semibold">
+                    <span class="text-slate-300 flex items-center gap-1">🛡️ Безпека акаунту</span>
+                    <span id="securityText" class="font-mono-cyber text-emerald-400">100%</span>
+                </div>
+                <div class="w-full h-3 bg-slate-900 rounded-full overflow-hidden p-0.5 border border-slate-700">
+                    <div id="securityBar" class="h-full bg-emerald-500 rounded-full progress-smooth" style="width: 100%;"></div>
+                </div>
+            </div>
+
+            <!-- Очки та прогрес рівнів -->
+            <div class="sm:col-span-5 flex items-center justify-between sm:justify-end gap-3">
+                <div class="bg-slate-900/90 border border-amber-500/30 px-3 py-1.5 rounded-xl flex items-center gap-1.5">
+                    <span class="text-amber-400 text-sm">⚡</span>
+                    <span id="scoreText" class="font-mono-cyber text-sm font-bold text-amber-300">0 XP</span>
+                </div>
+                <div class="bg-slate-900/90 border border-cyan-500/30 px-3 py-1.5 rounded-xl">
+                    <span id="stageText" class="font-mono-cyber text-xs font-bold text-cyan-300">1 / 8</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Головний ігровий контейнер -->
+    <main id="gameContainer" class="w-full max-w-2xl flex-1 flex flex-col justify-center my-auto">
+
+        <!-- ЕКРАН 1: Стартовий екран -->
+        <section id="screenStart" class="cyber-glass rounded-3xl p-6 sm:p-8 text-center animate-pop-in">
+            <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-cyan-500/15 border border-cyan-400/30 text-cyan-300 text-xs font-semibold mb-4">
+                <span>🎮</span> Симулятор цифрової безпеки для гравців
+            </div>
+            
+            <h2 class="text-2xl sm:text-4xl font-extrabold text-white mb-3 leading-tight">
+                Твій акаунт — твоя фортеця!
+            </h2>
+            
+            <p class="text-slate-300 text-sm sm:text-base max-w-lg mx-auto mb-6 leading-relaxed">
+                Уяви: ти прокачав крутий ігровий профіль із рідкісними скінами. Одразу ж у чат починають писати незнайомці, «друзі» та фейкові адміни. Хтось пропонує купити акаунт, хтось — безкоштовну прокачку. Чи зможеш ти зберегти свій профіль?
+            </p>
+
+            <!-- Картка профілю гравця -->
+            <div class="bg-slate-900/80 border border-slate-700/80 rounded-2xl p-4 max-w-md mx-auto mb-6 text-left flex items-center gap-4">
+                <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-purple-600 to-pink-500 flex items-center justify-center text-2xl shadow-lg shrink-0">
+                    🦊
+                </div>
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2">
+                        <span class="font-bold text-white truncate">CyberFox_UA</span>
+                        <span class="px-2 py-0.5 text-[10px] font-bold uppercase rounded bg-amber-500/20 text-amber-300 border border-amber-500/40">Легенда</span>
+                    </div>
+                    <p class="text-xs text-slate-400 mt-0.5">Рівень 85 • 14 рідкісних скінів</p>
+                    <div class="flex gap-1.5 mt-2">
+                        <span class="text-[11px] px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300">Пошта прив'язана</span>
+                        <span id="badge2FA" class="text-[11px] px-2 py-0.5 rounded bg-slate-800 text-slate-400">2FA: Вимкнено</span>
+                    </div>
+                </div>
+            </div>
+
+            <button id="btnStartGame" class="game-btn w-full sm:w-auto px-8 py-4 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-extrabold text-base sm:text-lg shadow-xl shadow-cyan-500/25">
+                🚀 Почати гру
+            </button>
+        </section>
+
+        <!-- ЕКРАН 2: Ігровий процес (Чат-симулятор) -->
+        <section id="screenPlay" class="hidden flex-col gap-4">
+            
+            <!-- Вікно вхідного повідомлення -->
+            <div id="chatCard" class="cyber-glass rounded-3xl p-4 sm:p-6 animate-pop-in">
+                <!-- Шапка співрозмовника -->
+                <div class="flex items-center justify-between gap-2 pb-3 mb-4 border-b border-slate-700/70">
+                    <div class="flex items-center gap-3">
+                        <div id="senderAvatar" class="w-11 h-11 rounded-2xl bg-slate-800 border border-slate-600 flex items-center justify-center text-2xl shrink-0">
+                            🕵️
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span id="senderName" class="font-bold text-white text-sm sm:text-base">UnknownUser</span>
+                                <span id="senderTag" class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                                    Незнайомець
+                                </span>
+                            </div>
+                            <p id="scenarioTopic" class="text-xs text-slate-400 mt-0.5">Тема: Підозріла пропозиція</p>
+                        </div>
+                    </div>
+
+                    <!-- Кнопка Кібер-Сканера підказок -->
+                    <button id="btnScanner" class="game-btn px-3 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-400/40 text-amber-300 text-xs font-bold flex items-center gap-1.5 shrink-0" title="Натискай на підозрілі фрази в повідомленні!">
+                        <span>🔍</span>
+                        <span id="scannerBtnText">Сканер: <span id="cluesCount">0/2</span></span>
+                    </button>
+                </div>
+
+                <!-- Текст повідомлення з інтерактивними підказками -->
+                <div id="messageBox" class="bg-slate-900/90 border border-slate-700/80 rounded-2xl p-4 sm:p-5 text-sm sm:text-base text-slate-100 leading-relaxed relative">
+                    <!-- Вставляється через JS -->
+                </div>
+
+                <!-- Панель знайдених зачіпок (з'являється при натисканні на підказки) -->
+                <div id="clueFeedback" class="hidden mt-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs sm:text-sm text-amber-200 flex items-start gap-2">
+                    <span class="text-base">💡</span>
+                    <span id="clueFeedbackText"></span>
+                </div>
+            </div>
+
+            <!-- Варіанти дій гравця -->
+            <div class="flex flex-col gap-2.5">
+                <p class="text-xs font-bold uppercase tracking-wider text-slate-400 px-1">Твоя реакція:</p>
+                <div id="choicesContainer" class="flex flex-col gap-2.5">
+                    <!-- Кнопки варіантів генеруються через JS -->
+                </div>
+            </div>
+
+        </section>
+
+        <!-- ЕКРАН 3: Проміжне покращення безпеки (Міні-подія після 4-го рівня) -->
+        <section id="screenUpgrade" class="hidden cyber-glass rounded-3xl p-6 sm:p-8 text-center animate-pop-in">
+            <div class="w-16 h-16 rounded-2xl bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-3xl mx-auto mb-4">
+                🔐
+            </div>
+            <h2 class="text-xl sm:text-2xl font-extrabold text-white mb-2">
+                Час посилити захист акаунту!
+            </h2>
+            <p class="text-slate-300 text-sm sm:text-base mb-6 max-w-md mx-auto">
+                Ти успішно відбив першу хвилю атак! Обери найкраще налаштування безпеки, щоб відновити <span class="text-emerald-400 font-bold">+20% захисту</span> та отримати бонус.
+            </p>
+
+            <div class="flex flex-col gap-3 max-w-md mx-auto text-left">
+                <button onclick="applySecurityUpgrade(true)" class="game-btn p-4 rounded-2xl bg-slate-800/90 hover:bg-emerald-950/60 border border-emerald-500/40 flex items-center gap-3">
+                    <span class="text-2xl">🛡️</span>
+                    <div>
+                        <div class="font-bold text-emerald-300 text-sm sm:text-base">Увімкнути 2FA та створити унікальний пароль</div>
+                        <div class="text-xs text-slate-400">Надійний захист навіть якщо хтось дізнається пароль</div>
+                    </div>
+                </button>
+
+                <button onclick="applySecurityUpgrade(false)" class="game-btn p-4 rounded-2xl bg-slate-800/90 hover:bg-slate-700 border border-slate-600/50 flex items-center gap-3">
+                    <span class="text-2xl">📝</span>
+                    <div>
+                        <div class="font-bold text-slate-200 text-sm sm:text-base">Поставити легкий пароль «12345678», щоб не забути</div>
+                        <div class="text-xs text-slate-400">Зручно запам'ятати, але легко зламати</div>
+                    </div>
+                </button>
+            </div>
+        </section>
+
+        <!-- ЕКРАН 4: Фінальний результат (Перемога або Втрата акаунту) -->
+        <section id="screenEnd" class="hidden cyber-glass rounded-3xl p-6 sm:p-8 text-center animate-pop-in">
+            <div id="endIcon" class="w-20 h-20 rounded-3xl bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-4xl mx-auto mb-4 shadow-lg">
+                🏆
+            </div>
+
+            <div id="endBadge" class="inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-2 bg-emerald-500/20 text-emerald-300">
+                Місію виконано
+            </div>
+
+            <h2 id="endTitle" class="text-2xl sm:text-3xl font-extrabold text-white mb-2">
+                Ти — Легенда Кібербезпеки!
+            </h2>
+
+            <p id="endSubtitle" class="text-slate-300 text-sm sm:text-base max-w-lg mx-auto mb-6">
+                Твій акаунт у повній безпеці, а шахраї залишилися ні з чим.
+            </p>
+
+            <!-- Підсумкова статистика -->
+            <div class="grid grid-cols-3 gap-2 sm:gap-4 max-w-md mx-auto mb-6">
+                <div class="bg-slate-900/90 border border-slate-700/80 rounded-2xl p-3">
+                    <div class="text-xs text-slate-400">Захист</div>
+                    <div id="finalSecurity" class="font-mono-cyber text-lg sm:text-xl font-bold text-emerald-400 mt-0.5">100%</div>
+                </div>
+                <div class="bg-slate-900/90 border border-slate-700/80 rounded-2xl p-3">
+                    <div class="text-xs text-slate-400">Досвід</div>
+                    <div id="finalScore" class="font-mono-cyber text-lg sm:text-xl font-bold text-amber-400 mt-0.5">1600 XP</div>
+                </div>
+                <div class="bg-slate-900/90 border border-slate-700/80 rounded-2xl p-3">
+                    <div class="text-xs text-slate-400">Зачіпки</div>
+                    <div id="finalClues" class="font-mono-cyber text-lg sm:text-xl font-bold text-cyan-400 mt-0.5">16/16</div>
+                </div>
+            </div>
+
+            <!-- Короткий підсумок головних правил -->
+            <div class="bg-slate-900/80 border border-slate-700/80 rounded-2xl p-4 text-left max-w-lg mx-auto mb-6">
+                <h3 class="font-bold text-cyan-300 text-sm mb-2 flex items-center gap-1.5">
+                    <span>📌</span> Головне, що варто запам'ятати:
+                </h3>
+                <ul class="text-xs sm:text-sm text-slate-300 space-y-1.5">
+                    <li>• <strong>Продаж, купівля, оренда та обмін акаунтів</strong> заборонені правилами ігор і майже завжди закінчуються крадіжкою або баном.</li>
+                    <li>• <strong>Нікому не давай пароль</strong> — навіть найкращому другу з гри чи «адміністратору».</li>
+                    <li>• <strong>Коди з SMS (2FA)</strong> — це ключі від твого профілю. Їх не можна пересилати нікому.</li>
+                </ul>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-3 justify-center">
+                <button id="btnRestart" class="game-btn px-6 py-3.5 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold text-sm sm:text-base shadow-lg">
+                    🔄 Зіграти ще раз
+                </button>
+                <button id="btnEndRules" class="game-btn px-6 py-3.5 rounded-2xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 font-bold text-sm sm:text-base">
+                    📘 Відкрити пам'ятку
+                </button>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- МОДАЛЬНЕ ВІКНО: Пояснення після вибору відповіді -->
+    <div id="feedbackModal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="cyber-glass rounded-3xl max-w-lg w-full p-6 sm:p-7 animate-pop-in border-2" id="feedbackCardBorder">
+            <div class="flex items-center gap-3 mb-3">
+                <div id="fbIcon" class="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shrink-0">
+                    ✅
+                </div>
+                <div>
+                    <span id="fbDelta" class="text-xs font-mono-cyber font-bold uppercase px-2.5 py-0.5 rounded-full">
+                        +200 XP
+                    </span>
+                    <h3 id="fbTitle" class="text-lg sm:text-xl font-extrabold text-white mt-1">
+                        Чудовий захист!
+                    </h3>
+                </div>
+            </div>
+
+            <p id="fbExplanation" class="text-slate-200 text-sm sm:text-base leading-relaxed bg-slate-900/80 p-4 rounded-2xl border border-slate-700/70 mb-5">
+                Пояснення ситуації...
+            </p>
+
+            <button id="btnNextScenario" class="game-btn w-full py-3.5 rounded-2xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-extrabold text-base shadow-lg">
+                Продовжити →
+            </button>
+        </div>
+    </div>
+
+    <!-- МОДАЛЬНЕ ВІКНО: Пам'ятка кібербезпеки -->
+    <div id="rulesModal" class="hidden fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="cyber-glass rounded-3xl max-w-xl w-full max-h-[88vh] flex flex-col animate-pop-in">
+            <div class="p-5 border-b border-slate-700/80 flex items-center justify-between">
+                <h3 class="text-lg sm:text-xl font-extrabold text-white flex items-center gap-2">
+                    <span>🛡️</span> 6 Золотих правил захисту акаунту
+                </h3>
+                <button id="btnCloseRules" class="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold flex items-center justify-center">
+                    ✕
+                </button>
+            </div>
+            
+            <div class="p-5 overflow-y-auto space-y-3 text-sm text-slate-200">
+                <div class="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-700/70">
+                    <div class="font-bold text-rose-400 mb-1">1. Не продавай і не купуй акаунти</div>
+                    <p class="text-slate-300 text-xs sm:text-sm">Правила майже всіх онлайн-ігор суворо забороняють продаж профілів. Шахраї просять «перевірити вхід» і крадуть акаунт, а система гри назавжди блокує продані профілі.</p>
+                </div>
+                <div class="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-700/70">
+                    <div class="font-bold text-amber-400 mb-1">2. Не здавай профіль в оренду та не міняйся</div>
+                    <p class="text-slate-300 text-xs sm:text-sm">За кілька хвилин «орендар» може увімкнути чіти або образити інших гравців — і назавжди заблокують саме твій акаунт.</p>
+                </div>
+                <div class="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-700/70">
+                    <div class="font-bold text-cyan-400 mb-1">3. Пароль не можна давати навіть друзям</div>
+                    <p class="text-slate-300 text-xs sm:text-sm">Ти відповідаєш за все, що відбувається з твого профілю. Друг може випадково натиснути не туди, підхопити вірус або посваритися з тобою.</p>
+                </div>
+                <div class="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-700/70">
+                    <div class="font-bold text-purple-400 mb-1">4. Остерігайся «безкоштовної прокачки»</div>
+                    <p class="text-slate-300 text-xs sm:text-sm">Пропозиції швидко підняти ранг або накрутити валюту — це пастка для викрадення паролів.</p>
+                </div>
+                <div class="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-700/70">
+                    <div class="font-bold text-emerald-400 mb-1">5. Нікому не кажи коди з SMS (2FA)</div>
+                    <p class="text-slate-300 text-xs sm:text-sm">Якщо хтось просить код із повідомлення, бо «помилився номером» — це 100% спроба зламати твій профіль.</p>
+                </div>
+                <div class="p-3.5 rounded-2xl bg-slate-900/90 border border-slate-700/70">
+                    <div class="font-bold text-blue-400 mb-1">6. Справжні адміни не питають пароль</div>
+                    <p class="text-slate-300 text-xs sm:text-sm">Служба підтримки гри ніколи не пише в особистий чат з погрозами видалити акаунт за 10 хвилин, якщо ти не надішлеш пароль.</p>
+                </div>
+            </div>
+
+            <div class="p-4 border-t border-slate-700/80">
+                <button id="btnCloseRulesBottom" class="game-btn w-full py-3 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold">
+                    Зрозуміло!
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Підвал -->
+    <footer class="w-full max-w-2xl text-center text-xs text-slate-500 mt-4">
+        Навчальний симулятор цифрової безпеки • Бережи свої дані в мережі
+    </footer>
+
+    <script>
+        /* =====================================================================
+           1. ЗВУКОВИЙ СИНТЕЗАТОР (Web Audio API без зовнішніх файлів)
+           ===================================================================== */
+        class SoundFX {
+            constructor() {
+                this.enabled = true;
+                this.ctx = null;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    if (AudioContext) {
+                        this.ctx = new AudioContext();
+                    }
+                }
+                if (this.ctx && this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            playTone(freq, type, duration, delay = 0, gainVal = 0.12) {
+                if (!this.enabled) return;
+                try {
+                    this.init();
+                    if (!this.ctx) return;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = type;
+                    osc.frequency.setValueAtTime(freq, this.ctx.currentTime + delay);
+                    
+                    gain.gain.setValueAtTime(gainVal, this.ctx.currentTime + delay);
+                    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + delay + duration);
+
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+
+                    osc.start(this.ctx.currentTime + delay);
+                    osc.stop(this.ctx.currentTime + delay + duration);
+                } catch (e) {
+                    // Ігноруємо помилки автозапуску аудіо до першого кліку
+                }
+            }
+
+            click() { this.playTone(520, 'sine', 0.08, 0, 0.08); }
+            scan() {
+                this.playTone(740, 'triangle', 0.1, 0, 0.1);
+                this.playTone(980, 'triangle', 0.14, 0.08, 0.1);
+            }
+            success() {
+                this.playTone(523.25, 'sine', 0.15, 0, 0.12);
+                this.playTone(659.25, 'sine', 0.15, 0.1, 0.12);
+                this.playTone(783.99, 'sine', 0.25, 0.2, 0.14);
+            }
+            danger() {
+                this.playTone(220, 'sawtooth', 0.18, 0, 0.12);
+                this.playTone(175, 'sawtooth', 0.28, 0.15, 0.14);
+            }
+            newMsg() {
+                this.playTone(600, 'sine', 0.09, 0, 0.07);
+                this.playTone(800, 'sine', 0.12, 0.07, 0.07);
+            }
+        }
+
+        const sfx = new SoundFX();
+
+        /* =====================================================================
+           2. БАЗА ІГРОВИХ СЦЕНАРІЇВ (8 реалістичних ситуацій для дітей)
+           ===================================================================== */
+        const SCENARIOS = [
+            {
+                id: 1,
+                senderName: "DarkTrader_UA",
+                senderAvatar: "💰",
+                senderTag: "Незнайомець",
+                tagColor: "rose",
+                topic: "Ризик: Продаж акаунту",
+                // Сегменти повідомлення: звичайний текст або інтерактивна зачіпка (clue)
+                segments: [
+                    { text: "Привіт! Крутий у тебе профіль і рідкісні скіни! " },
+                    { text: "Куплю його прямо зараз за 3000 грн!", clue: "Надто вигідна пропозиція грошей — класична приманка шахраїв." },
+                    { text: " Тільки " },
+                    { text: "дай спочатку логін і пароль", clue: "Ніколи не давай дані для входу «на перевірку»!" },
+                    { text: ", я зайду перевірю інвентар, а потім одразу скину гроші на картку. Чесне слово!" }
+                ],
+                choices: [
+                    {
+                        text: "Відмовити і заблокувати: «Продаж акаунтів заборонений правилами гри, а пароль я нікому не даю».",
+                        type: "safe",
+                        securityDelta: 0,
+                        scoreDelta: 200,
+                        title: "Правильний вибір!",
+                        explanation: "Продаж та купівля акаунтів порушують правила гри. Шахрай після отримання пароля миттєво змінить пошту, а ти залишишся і без профілю, і без грошей."
+                    },
+                    {
+                        text: "Запропонувати: «Давай ти спочатку скинеш половину грошей, а я тоді дам пароль».",
+                        type: "risky",
+                        securityDelta: -45,
+                        scoreDelta: 0,
+                        title: "Небезпечна угода!",
+                        explanation: "Навіть якщо гроші прийдуть, шахраї часто використовують чужі картки або скасовують переказ. Крім того, адміністрація гри назавжди блокує продані акаунти."
+                    },
+                    {
+                        text: "Погодитися і скинути дані — дуже хочеться витратити ці гроші на новий гаджет.",
+                        type: "fatal",
+                        securityDelta: -85,
+                        scoreDelta: 0,
+                        title: "Акаунт під загрозою!",
+                        explanation: "Слова «чесне слово» в інтернеті нічого не гарантують. Щойно ти надіслав пароль, зловмисник забрав твій акаунт собі."
+                    }
+                ]
+            },
+            {
+                id: 2,
+                senderName: "ProBooster_2026",
+                senderAvatar: "🚀",
+                senderTag: "Незнайомець",
+                tagColor: "amber",
+                topic: "Ризик: Передача акаунту для «прокачки»",
+                segments: [
+                    { text: "Бачу, ти застряг на Срібному ранзі. Я топ-гравець і можу " },
+                    { text: "безкоштовно підняти тобі рейтинг до Легенди", clue: "Безкоштовний сир буває лише в мишоловці — навіщо незнайомцю витрачати на тебе час?" },
+                    { text: " за один вечір! Просто " },
+                    { text: "скинь дані для входу", clue: "Передача логіна й пароля сторонній особі — прямий шлях до втрати акаунту." },
+                    { text: ", я пограю з твого профілю." }
+                ],
+                choices: [
+                    {
+                        text: "Погодитися — круто отримати високий ранг без зусиль!",
+                        type: "fatal",
+                        securityDelta: -75,
+                        scoreDelta: 0,
+                        title: "Пастка «прокачки»!",
+                        explanation: "Під виглядом «бустингу» злодії або крадуть акаунт, або грають на ньому з чітами. Через це твій профіль заблокують назавжди."
+                    },
+                    {
+                        text: "Відмовитися: «Дякую, я буду тренуватися і піднімати ранг самостійно!»",
+                        type: "safe",
+                        securityDelta: 0,
+                        scoreDelta: 200,
+                        title: "Справжній спортивний дух!",
+                        explanation: "Чудове рішення! Власні перемоги приносять справжню радість, а твій акаунт залишається захищеним."
+                    },
+                    {
+                        text: "Дати пароль, але попросити не чіпати рідкісні скіни та налаштування.",
+                        type: "risky",
+                        securityDelta: -60,
+                        scoreDelta: 0,
+                        title: "Твої правила не подіють!",
+                        explanation: "Коли стороння людина входить у твій акаунт, вона отримує повний контроль і за секунду може змінити пароль."
+                    }
+                ]
+            },
+            {
+                id: 3,
+                senderName: "Sanya_ProGamer",
+                senderAvatar: "🎧",
+                senderTag: "Тіммейт (2 тижні)",
+                tagColor: "cyan",
+                topic: "Ризик: Передача акаунту «другу»",
+                segments: [
+                    { text: "Бро, виручай! " },
+                    { text: "Мій акаунт випадково заблокували", clue: "Якщо його акаунт заблокували за порушення, він може отримати бан і на твоєму профілі!" },
+                    { text: " на тиждень, а сьогодні турнір! Дай пограти з твого акаунту на вихідні, " },
+                    { text: "ми ж друзі, ти мені не довіряєш?", clue: "Маніпуляція дружбою: справжні друзі не змушують порушувати правила безпеки." }
+                ],
+                choices: [
+                    {
+                        text: "Дати пароль — друзям треба допомагати і довіряти.",
+                        type: "risky",
+                        securityDelta: -55,
+                        scoreDelta: 0,
+                        title: "Обережно з такою «допомогою»!",
+                        explanation: "Його перший акаунт заблокували не просто так. Якщо він використає заборонені програми чи образить гравців із твого профілю — забанять ТЕБЕ."
+                    },
+                    {
+                        text: "Відповісти: «Вибач, пароль — особиста таємниця. Можу пограти з тобою, якщо створиш новий профіль!»",
+                        type: "safe",
+                        securityDelta: 0,
+                        scoreDelta: 200,
+                        title: "Мудра відповідь!",
+                        explanation: "Ти зберіг дружню атмосферу, але не віддав ключ від свого профілю. Справжній друг поставиться до цього з повагою."
+                    },
+                    {
+                        text: "Дати пароль на один вечір, а завтра вранці змінити його.",
+                        type: "risky",
+                        securityDelta: -45,
+                        scoreDelta: 0,
+                        title: "Завтра може бути пізно!",
+                        explanation: "Він може змінити пароль раніше за тебе або прив'язати свою пошту, і ти вже не зможеш повернути доступ."
+                    }
+                ]
+            },
+            {
+                id: 4,
+                senderName: "FreeGems_Bot",
+                senderAvatar: "🎁",
+                senderTag: "Рекламний бот",
+                tagColor: "purple",
+                topic: "Ризик: Фішинговий сайт з бонусами",
+                segments: [
+                    { text: "🔥 АКЦІЯ ДЛЯ ОБРАНИХ! Забирай " },
+                    { text: "10 000 безкоштовних кристалів", clue: "Нереальні подарунки — головна ознака обману." },
+                    { text: " та легендарний скін прямо зараз на сайті партнерів: " },
+                    { text: "http://game-bonus-free2026.xyz/login", clue: "Підозріла адреса сайту (.xyz), яка не належить офіційним розробникам гри!" }
+                ],
+                choices: [
+                    {
+                        text: "Перейти за посиланням і ввести логін з паролем, поки акція діє!",
+                        type: "fatal",
+                        securityDelta: -85,
+                        scoreDelta: 0,
+                        title: "Ти потрапив на фішинг!",
+                        explanation: "Це сайт-підробка! Він виглядає як справжня гра, але створений лише для того, щоб записати твій пароль, щойно ти його введеш."
+                    },
+                    {
+                        text: "Надіслати посилання друзям, щоб вони перевірили першими.",
+                        type: "risky",
+                        securityDelta: -30,
+                        scoreDelta: 0,
+                        title: "Не поширюй небезпеку!",
+                        explanation: "Пересилаючи фішингові посилання, ти підставляєш друзів, а система гри може заблокувати тебе за розсилку спаму."
+                    },
+                    {
+                        text: "Не переходити за посиланням і натиснути «Поскаржитися на спам».",
+                        type: "safe",
+                        securityDelta: 0,
+                        scoreDelta: 200,
+                        title: "Блискуче розпізнано!",
+                        explanation: "Офіційні розробники ніколи не роздають тисячі кристалів на сторонніх сайтах із дивними адресами."
+                    }
+                ]
+            },
+            {
+                id: 5,
+                senderName: "Katya_Star",
+                senderAvatar: "🌸",
+                senderTag: "Незнайомка",
+                tagColor: "rose",
+                topic: "Ризик: Викрадення коду з SMS (2FA)",
+                segments: [
+                    { text: "Привіт! Ой, я " },
+                    { text: "випадково помилилася однією цифрою в номері", clue: "Випадково «помилитися» номером і вгадати твій ігровий нікнейм неможливо!" },
+                    { text: ", коли відновлювала акаунт, і " },
+                    { text: "код підтвердження прийшов тобі в SMS!", clue: "Код з SMS — це секретний ключ від твого профілю!" },
+                    { text: " Скинь його швиденько, будь ласка 🙏" }
+                ],
+                choices: [
+                    {
+                        text: "Допомогти і швиденько переслати цифри з SMS.",
+                        type: "fatal",
+                        securityDelta: -90,
+                        scoreDelta: 0,
+                        title: "Критична помилка!",
+                        explanation: "Це шахрай намагається скинути ТВІЙ пароль! Код із SMS або двофакторної аутентифікації (2FA) не можна повідомляти нікому."
+                    },
+                    {
+                        text: "Проігнорувати повідомлення і перевірити налаштування безпеки свого профілю.",
+                        type: "safe",
+                        securityDelta: 0,
+                        scoreDelta: 200,
+                        title: "Бездоганний захист!",
+                        explanation: "Ти не піддався на хитрість! Коди підтвердження призначені лише для власника акаунту."
+                    },
+                    {
+                        text: "Запитати, який у неї нікнейм у грі, і тоді скинути код.",
+                        type: "fatal",
+                        securityDelta: -80,
+                        scoreDelta: 0,
+                        title: "Шахрай легко збреше!",
+                        explanation: "Зловмисник назве будь-який вигаданий нік, а отримавши код із SMS, одразу заволодіє твоїм профілем."
+                    }
+                ]
+            },
+            {
+                id: 6,
+                senderName: "RentSkins_Club",
+                senderAvatar: "🎬",
+                senderTag: "Незнайомець",
+                tagColor: "amber",
+                topic: "Ризик: Оренда акаунту",
+                segments: [
+                    { text: "Здай свій акаунт в " },
+                    { text: "оренду на 3 години! Заплатимо 250 грн", clue: "Оренда профілю так само заборонена, як і його продаж." },
+                    { text: " за годину. Нам просто треба зняти відео для TikTok з твоїм рідкісним скіном. " },
+                    { text: "Нічого міняти не будемо!", clue: "Незнайомці в інтернеті не несуть відповідальності за твій профіль." }
+                ],
+                choices: [
+                    {
+                        text: "Відмовити: «Оренда акаунтів порушує правила і призводить до крадіжки або бану».",
+                        type: "safe",
+                        securityDelta: 0,
+                        scoreDelta: 200,
+                        title: "Правильне рішення!",
+                        explanation: "Під час «оренди» шахраї часто використовують заборонені програми (чіти) або крадуть предмети, після чого акаунт блокують назавжди."
+                    },
+                    {
+                        text: "Погодитися на 1 годинку, щоб заробити трохи грошей.",
+                        type: "risky",
+                        securityDelta: -65,
+                        scoreDelta: 0,
+                        title: "1 хвилини вистачить для крадіжки!",
+                        explanation: "Зловмиснику не потрібна година — за 30 секунд він змінить пароль і відв'яже твою пошту."
+                    },
+                    {
+                        text: "Попросити фото паспорта як гарантію, що не вкрадуть акаунт.",
+                        type: "risky",
+                        securityDelta: -45,
+                        scoreDelta: 0,
+                        title: "Фальшиві документи!",
+                        explanation: "Шахраї надсилають чужі або підроблені фото документів з інтернету, тож така «гарантія» не захистить твій профіль."
+                    }
+                ]
+            },
+            {
+                id: 7,
+                senderName: "Admin_Security_Help",
+                senderAvatar: "⚠️",
+                senderTag: "Підозрілий профіль",
+                tagColor: "rose",
+                topic: "Ризик: Фальшивий модератор",
+                segments: [
+                    { text: "⚠️ УВАГА! Зафіксовано порушення правил. Щоб уникнути " },
+                    { text: "видалення профілю через 15 хвилин", clue: "Залякування і штучний поспіх — улюблений прийом шахраїв, щоб ти не встиг подумати." },
+                    { text: ", терміново надішліть у відповідь " },
+                    { text: "ваш логін, пароль та пошту", clue: "Справжні модератори та служба підтримки НІКОЛИ не запитують твій пароль!" },
+                    { text: " для перевірки." }
+                ],
+                choices: [
+                    {
+                        text: "Швидко надіслати пароль, щоб не видалили акаунт!",
+                        type: "fatal",
+                        securityDelta: -90,
+                        scoreDelta: 0,
+                        title: "Це був фейковий адмін!",
+                        explanation: "Справжня адміністрація гри має доступ до серверів і НІКОЛИ не просить пароль у гравців. Шахрай просто налякав тебе."
+                    },
+                    {
+                        text: "Надіслати тільки електронну пошту, без пароля.",
+                        type: "risky",
+                        securityDelta: -35,
+                        scoreDelta: 0,
+                        title: "Не ділися поштою з незнайомцями!",
+                        explanation: "Знаючи твою пошту, шахраї почнуть надсилати туди підроблені листи для зламу. Краще взагалі не відповідати."
+                    },
+                    {
+                        text: "Не відповідати і поскаржитися на фейкового модератора в підтримку гри.",
+                        type: "safe",
+                        securityDelta: 0,
+                        scoreDelta: 200,
+                        title: "Ти не піддався паніці!",
+                        explanation: "Чудово! Коли хтось вимагає діяти терміново і просить пароль — це завжди шахрай."
+                    }
+                ]
+            },
+            {
+                id: 8,
+                senderName: "MegaCollector",
+                senderAvatar: "🔄",
+                senderTag: "Незнайомець",
+                tagColor: "cyan",
+                topic: "Ризик: Обмін акаунтами",
+                segments: [
+                    { text: "Давай " },
+                    { text: "обміняємося акаунтами назавжди!", clue: "Обмін профілями так само заборонений правилами, як і продаж." },
+                    { text: " У мене є супер-рідкісний скін 2019 року, який більше ніде не дістати. " },
+                    { text: "Кидай свої дані першим", clue: "Після того як ти надішлеш дані першим, співрозмовник просто зникне." },
+                    { text: ", я чесний гравець!" }
+                ],
+                choices: [
+                    {
+                        text: "Погодитися — дуже хочеться отримати рідкісний скін 2019 року!",
+                        type: "fatal",
+                        securityDelta: -80,
+                        scoreDelta: 0,
+                        title: "Обмін закінчився втратою!",
+                        explanation: "У 99% випадків після отримання твоїх даних шахрай додає тебе в чорний список. А навіть якщо обмін відбудеться, система гри заблокує обидва профілі."
+                    },
+                    {
+                        text: "Відмовити: «Обмін акаунтами заборонений правилами, я залишаю свій профіль собі».",
+                        type: "safe",
+                        securityDelta: 0,
+                        scoreDelta: 200,
+                        title: "Фінальна перемога!",
+                        explanation: "Жоден рідкісний скін не вартий того, щоб втратити власний безпечний профіль. Ти впорався на відмінно!"
+                    },
+                    {
+                        text: "Попросити його кинути дані першим, щоб не ризикувати самому.",
+                        type: "risky",
+                        securityDelta: -45,
+                        scoreDelta: 0,
+                        title: "Це теж пастка!",
+                        explanation: "Навіть якщо він дасть пароль першим, це може бути крадений акаунт, який поверне справжній власник, а ти все одно отримаєш бан за обмін."
+                    }
+                ]
+            }
+        ];
+
+        /* =====================================================================
+           3. СТАН ГРИ ТА ЕЛЕМЕНТИ ІНТЕРФЕЙСУ
+           ===================================================================== */
+        let state = {
+            currentIndex: 0,
+            security: 100,
+            score: 0,
+            foundCluesTotal: 0,
+            totalCluesAvailable: SCENARIOS.reduce((acc, s) => acc + s.segments.filter(seg => seg.clue).length, 0),
+            currentFoundClues: new Set(),
+            scannerHighlighted: false,
+            upgradeShown: false,
+            has2FA: false
+        };
+
+        // DOM елементи
+        const screens = {
+            start: document.getElementById('screenStart'),
+            play: document.getElementById('screenPlay'),
+            upgrade: document.getElementById('screenUpgrade'),
+            end: document.getElementById('screenEnd')
+        };
+
+        const hudStats = document.getElementById('hudStats');
+        const securityText = document.getElementById('securityText');
+        const securityBar = document.getElementById('securityBar');
+        const scoreText = document.getElementById('scoreText');
+        const stageText = document.getElementById('stageText');
+
+        const chatCard = document.getElementById('chatCard');
+        const senderAvatar = document.getElementById('senderAvatar');
+        const senderName = document.getElementById('senderName');
+        const senderTag = document.getElementById('senderTag');
+        const scenarioTopic = document.getElementById('scenarioTopic');
+        const messageBox = document.getElementById('messageBox');
+        const btnScanner = document.getElementById('btnScanner');
+        const cluesCount = document.getElementById('cluesCount');
+        const clueFeedback = document.getElementById('clueFeedback');
+        const clueFeedbackText = document.getElementById('clueFeedbackText');
+        const choicesContainer = document.getElementById('choicesContainer');
+
+        const feedbackModal = document.getElementById('feedbackModal');
+        const feedbackCardBorder = document.getElementById('feedbackCardBorder');
+        const fbIcon = document.getElementById('fbIcon');
+        const fbDelta = document.getElementById('fbDelta');
+        const fbTitle = document.getElementById('fbTitle');
+        const fbExplanation = document.getElementById('fbExplanation');
+        const btnNextScenario = document.getElementById('btnNextScenario');
+
+        const rulesModal = document.getElementById('rulesModal');
+
+        /* =====================================================================
+           4. ФУНКЦІЇ КЕРУВАННЯ ГРОЮ
+           ===================================================================== */
+        function showScreen(screenKey) {
+            Object.values(screens).forEach(el => {
+                el.classList.add('hidden');
+                el.classList.remove('flex');
+            });
+            screens[screenKey].classList.remove('hidden');
+            if (screenKey === 'play') {
+                screens[screenKey].classList.add('flex');
+                hudStats.classList.remove('hidden');
+                hudStats.classList.add('grid');
+            } else if (screenKey === 'start') {
+                hudStats.classList.add('hidden');
+                hudStats.classList.remove('grid');
+            }
+        }
+
+        function updateHUD() {
+            const sec = Math.max(0, Math.min(100, state.security));
+            securityText.textContent = `${sec}%`;
+            securityBar.style.width = `${sec}%`;
+
+            // Колір шкали залежно від рівня безпеки
+            securityBar.classList.remove('bg-emerald-500', 'bg-amber-500', 'bg-rose-500');
+            securityText.classList.remove('text-emerald-400', 'text-amber-400', 'text-rose-400');
+
+            if (sec > 60) {
+                securityBar.classList.add('bg-emerald-500');
+                securityText.classList.add('text-emerald-400');
+            } else if (sec > 30) {
+                securityBar.classList.add('bg-amber-500');
+                securityText.classList.add('text-amber-400');
+            } else {
+                securityBar.classList.add('bg-rose-500');
+                securityText.classList.add('text-rose-400');
+            }
+
+            scoreText.textContent = `${state.score} XP`;
+            stageText.textContent = `${Math.min(state.currentIndex + 1, SCENARIOS.length)} / ${SCENARIOS.length}`;
+        }
+
+        function startGame() {
+            sfx.click();
+            state = {
+                currentIndex: 0,
+                security: 100,
+                score: 0,
+                foundCluesTotal: 0,
+                totalCluesAvailable: SCENARIOS.reduce((acc, s) => acc + s.segments.filter(seg => seg.clue).length, 0),
+                currentFoundClues: new Set(),
+                scannerHighlighted: false,
+                upgradeShown: false,
+                has2FA: false
+            };
+            document.getElementById('badge2FA').textContent = '2FA: Вимкнено';
+            document.getElementById('badge2FA').className = 'text-[11px] px-2 py-0.5 rounded bg-slate-800 text-slate-400';
+            
+            updateHUD();
+            showScreen('play');
+            renderScenario();
+        }
+
+        function renderScenario() {
+            const scenario = SCENARIOS[state.currentIndex];
+            state.currentFoundClues.clear();
+            state.scannerHighlighted = false;
+            messageBox.classList.remove('scanner-active');
+            clueFeedback.classList.add('hidden');
+
+            // Перезапуск анімації картки
+            chatCard.classList.remove('animate-pop-in');
+            void chatCard.offsetWidth;
+            chatCard.classList.add('animate-pop-in');
+
+            sfx.newMsg();
+
+            // Заповнення шапки
+            senderAvatar.textContent = scenario.senderAvatar;
+            senderName.textContent = scenario.senderName;
+            senderTag.textContent = scenario.senderTag;
+            scenarioTopic.textContent = scenario.topic;
+
+            // Колір бейджа відправника
+            const tagColors = {
+                rose: 'bg-rose-500/20 text-rose-300 border-rose-500/30',
+                amber: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
+                cyan: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30',
+                purple: 'bg-purple-500/20 text-purple-300 border-purple-500/30'
+            };
+            senderTag.className = `text-[11px] font-semibold px-2 py-0.5 rounded-full border ${tagColors[scenario.tagColor] || tagColors.rose}`;
+
+            // Рендер тексту повідомлення з клікабельними зачіпками
+            messageBox.innerHTML = '';
+            let clueIdx = 0;
+            const totalCluesInMsg = scenario.segments.filter(s => s.clue).length;
+            cluesCount.textContent = `0/${totalCluesInMsg}`;
+
+            scenario.segments.forEach(seg => {
+                if (!seg.clue) {
+                    messageBox.appendChild(document.createTextNode(seg.text));
+                } else {
+                    const currentClueId = clueIdx++;
+                    const span = document.createElement('span');
+                    span.textContent = seg.text;
+                    span.className = 'clue-word';
+                    span.title = 'Натисни, щоб перевірити підозрілу фразу!';
+                    span.addEventListener('click', () => handleClueClick(currentClueId, seg.clue, span, totalCluesInMsg));
+                    messageBox.appendChild(span);
+                }
+            });
+
+            // Рендер кнопок вибору
+            choicesContainer.innerHTML = '';
+            const letters = ['A', 'B', 'C'];
+            scenario.choices.forEach((choice, idx) => {
+                const btn = document.createElement('button');
+                btn.className = 'game-btn w-full text-left p-3.5 sm:p-4 rounded-2xl bg-slate-800/90 hover:bg-slate-700/95 border border-slate-600/60 hover:border-cyan-400/60 flex items-start gap-3 group';
+                btn.innerHTML = `
+                    <span class="w-7 h-7 rounded-lg bg-slate-900 border border-slate-600 group-hover:border-cyan-400 group-hover:text-cyan-300 font-mono-cyber text-xs font-bold flex items-center justify-center shrink-0 mt-0.5 transition-colors">
+                        ${letters[idx]}
+                    </span>
+                    <span class="text-sm sm:text-base text-slate-100 leading-snug">${choice.text}</span>
+                `;
+                btn.addEventListener('click', () => handleChoice(choice));
+                choicesContainer.appendChild(btn);
+            });
+
+            updateHUD();
+        }
+
+        function handleClueClick(clueId, explanation, spanEl, totalInMsg) {
+            if (!state.currentFoundClues.has(clueId)) {
+                state.currentFoundClues.add(clueId);
+                state.foundCluesTotal++;
+                state.score += 50;
+                spanEl.classList.add('found');
+                sfx.scan();
+                updateHUD();
+                cluesCount.textContent = `${state.currentFoundClues.size}/${totalInMsg}`;
+            } else {
+                sfx.click();
+            }
+
+            clueFeedbackText.innerHTML = `<strong>Виявлено зачіпку (+50 XP):</strong> ${explanation}`;
+            clueFeedback.classList.remove('hidden');
+        }
+
+        function toggleScanner() {
+            sfx.scan();
+            state.scannerHighlighted = !state.scannerHighlighted;
+            if (state.scannerHighlighted) {
+                messageBox.classList.add('scanner-active');
+                clueFeedbackText.textContent = 'Режим сканера активний! Натискай на підсвічені підозрілі фрази в повідомленні, щоб викрити шахрая.';
+                clueFeedback.classList.remove('hidden');
+            } else {
+                messageBox.classList.remove('scanner-active');
+            }
+        }
+
+        function handleChoice(choice) {
+            // Застосування наслідків вибору
+            let actualSecDelta = choice.securityDelta;
+            // Якщо гравець увімкнув 2FA на екваторі гри, зменшуємо шкоду від ризиків на 10%
+            if (actualSecDelta < 0 && state.has2FA) {
+                actualSecDelta = Math.min(-10, actualSecDelta + 10);
+            }
+
+            state.security = Math.max(0, state.security + actualSecDelta);
+            state.score += choice.scoreDelta;
+            updateHUD();
+
+            // Налаштування модального вікна результату
+            feedbackCardBorder.classList.remove('border-emerald-500/60', 'border-amber-500/60', 'border-rose-500/60');
+            fbIcon.classList.remove('bg-emerald-500/20', 'bg-amber-500/20', 'bg-rose-500/20');
+            fbDelta.classList.remove('bg-emerald-500/20', 'text-emerald-300', 'bg-amber-500/20', 'text-amber-300', 'bg-rose-500/20', 'text-rose-300');
+
+            if (choice.type === 'safe') {
+                sfx.success();
+                feedbackCardBorder.classList.add('border-emerald-500/60');
+                fbIcon.classList.add('bg-emerald-500/20');
+                fbIcon.textContent = '🛡️';
+                fbDelta.classList.add('bg-emerald-500/20', 'text-emerald-300');
+                fbDelta.textContent = `+${choice.scoreDelta} XP • Захист збережено`;
+            } else if (choice.type === 'risky') {
+                sfx.danger();
+                chatCard.classList.add('animate-shake');
+                setTimeout(() => chatCard.classList.remove('animate-shake'), 500);
+                feedbackCardBorder.classList.add('border-amber-500/60');
+                fbIcon.classList.add('bg-amber-500/20');
+                fbIcon.textContent = '⚠️';
+                fbDelta.classList.add('bg-amber-500/20', 'text-amber-300');
+                fbDelta.textContent = `${actualSecDelta}% захисту`;
+            } else {
+                sfx.danger();
+                chatCard.classList.add('animate-shake');
+                setTimeout(() => chatCard.classList.remove('animate-shake'), 500);
+                feedbackCardBorder.classList.add('border-rose-500/60');
+                fbIcon.classList.add('bg-rose-500/20');
+                fbIcon.textContent = '🚨';
+                fbDelta.classList.add('bg-rose-500/20', 'text-rose-300');
+                fbDelta.textContent = `${actualSecDelta}% захисту`;
+            }
+
+            fbTitle.textContent = choice.title;
+            fbExplanation.textContent = choice.explanation;
+
+            // Перевірка, чи не впав захист до нуля
+            if (state.security <= 0) {
+                btnNextScenario.textContent = 'Переглянути підсумок →';
+            } else {
+                btnNextScenario.textContent = 'Продовжити →';
+            }
+
+            feedbackModal.classList.remove('hidden');
+        }
+
+        function nextStep() {
+            sfx.click();
+            feedbackModal.classList.add('hidden');
+
+            // Якщо захист впав до 0% — достроковий фінал (втрата акаунту)
+            if (state.security <= 0) {
+                finishGame(false);
+                return;
+            }
+
+            state.currentIndex++;
+
+            // Після 4-го сценарію показуємо бонусне покращення безпеки
+            if (state.currentIndex === 4 && !state.upgradeShown) {
+                state.upgradeShown = true;
+                showScreen('upgrade');
+                return;
+            }
+
+            if (state.currentIndex < SCENARIOS.length) {
+                renderScenario();
+            } else {
+                finishGame(true);
+            }
+        }
+
+        window.applySecurityUpgrade = function(isGoodChoice) {
+            if (isGoodChoice) {
+                sfx.success();
+                state.has2FA = true;
+                state.security = Math.min(100, state.security + 20);
+                state.score += 150;
+                const badge = document.getElementById('badge2FA');
+                badge.textContent = '2FA: Увімкнено';
+                badge.className = 'text-[11px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300';
+            } else {
+                sfx.danger();
+                state.security = Math.max(10, state.security - 15);
+            }
+            updateHUD();
+            showScreen('play');
+            renderScenario();
+        };
+
+        function finishGame(survived) {
+            showScreen('end');
+            const endIcon = document.getElementById('endIcon');
+            const endBadge = document.getElementById('endBadge');
+            const endTitle = document.getElementById('endTitle');
+            const endSubtitle = document.getElementById('endSubtitle');
+
+            document.getElementById('finalSecurity').textContent = `${state.security}%`;
+            document.getElementById('finalScore').textContent = `${state.score} XP`;
+            document.getElementById('finalClues').textContent = `${state.foundCluesTotal}/${state.totalCluesAvailable}`;
+
+            if (!survived || state.security <= 0) {
+                sfx.danger();
+                endIcon.textContent = '🔓';
+                endIcon.className = 'w-20 h-20 rounded-3xl bg-rose-500/20 border border-rose-400/40 flex items-center justify-center text-4xl mx-auto mb-4 shadow-lg';
+                endBadge.textContent = 'Акаунт викрадено';
+                endBadge.className = 'inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-2 bg-rose-500/20 text-rose-300';
+                endTitle.textContent = 'Цього разу шахраї перемогли...';
+                endSubtitle.textContent = 'Ти припустився критичних помилок у захисті профілю. Але це лише тренування! Спробуй пройти гру ще раз, звертаючи увагу на підказки сканера.';
+            } else if (state.security >= 80) {
+                sfx.success();
+                endIcon.textContent = '🏆';
+                endIcon.className = 'w-20 h-20 rounded-3xl bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-4xl mx-auto mb-4 shadow-lg';
+                endBadge.textContent = 'Ідеальний захист';
+                endBadge.className = 'inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-2 bg-emerald-500/20 text-emerald-300';
+                endTitle.textContent = 'Ти — Легенда Кібербезпеки!';
+                endSubtitle.textContent = 'Жоден продавець, фейковий адмін чи викрадач кодів не зміг тебе обдурити. Твій акаунт у повній безпеці!';
+            } else {
+                sfx.success();
+                endIcon.textContent = '🛡️';
+                endIcon.className = 'w-20 h-20 rounded-3xl bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-4xl mx-auto mb-4 shadow-lg';
+                endBadge.textContent = 'Місію виконано';
+                endBadge.className = 'inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-2 bg-amber-500/20 text-amber-300';
+                endTitle.textContent = 'Ти зберіг свій акаунт!';
+                endSubtitle.textContent = 'Було кілька небезпечних моментів, але твій профіль вцілів. Спробуй пройти ще раз на 100% захисту!';
+            }
+        }
+
+        /* =====================================================================
+           5. ОБРОБНИКИ ПОДІЙ
+           ===================================================================== */
+        document.getElementById('btnStartGame').addEventListener('click', startGame);
+        document.getElementById('btnRestart').addEventListener('click', startGame);
+        document.getElementById('btnNextScenario').addEventListener('click', nextStep);
+        document.getElementById('btnScanner').addEventListener('click', toggleScanner);
+
+        // Керування звуком
+        document.getElementById('btnSound').addEventListener('click', () => {
+            sfx.enabled = !sfx.enabled;
+            document.getElementById('soundIcon').textContent = sfx.enabled ? '🔊' : '🔇';
+            if (sfx.enabled) sfx.click();
+        });
+
+        // Модальне вікно правил
+        const openRules = () => { sfx.click(); rulesModal.classList.remove('hidden'); };
+        const closeRules = () => { sfx.click(); rulesModal.classList.add('hidden'); };
+
+        document.getElementById('btnRules').addEventListener('click', openRules);
+        document.getElementById('btnEndRules').addEventListener('click', openRules);
+        document.getElementById('btnCloseRules').addEventListener('click', closeRules);
+        document.getElementById('btnCloseRulesBottom').addEventListener('click', closeRules);
+
+        // Закриття модалки правил при кліку за межі картки
+        rulesModal.addEventListener('click', (e) => {
+            if (e.target === rulesModal) closeRules();
+        });
+    </script>
+</body>
+</html>
